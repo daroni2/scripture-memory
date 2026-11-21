@@ -1,0 +1,1039 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Scripture">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f3f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11181b" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<title>Scripture Memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Alegreya+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout: one reading column. Setup: your text, then Range | Timer side by side (stacked on phones),
+   then options. Run: a sticky bar (passage, clock, Main menu, progress) above the verse card.
+   The card's buttons sit directly under the answer box, so a correction never pushes them away
+   and the phone keyboard doesn't cover them. */
+:root {
+  --bg: #f3f6f7;
+  --surface: #ffffff;
+  --fg: #182226;
+  --muted: #55676d;
+  --line: #d3dcdf;
+  --accent: #1b6872;
+  --accent-fg: #ffffff;
+  --accent-soft: #dcebee;
+  --good: #2a7449;
+  --bad: #a93a2b;
+  --bad-soft: #f7e0dc;
+  --mark: #f3dc8f;
+  --knob: #ffffff;
+  --font-display: "Alegreya", Georgia, "Times New Roman", serif;
+  --font-ui: "Alegreya Sans", -apple-system, system-ui, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11181b; --surface: #192327; --fg: #e5eef0; --muted: #93a6ac; --line: #2b3a40;
+    --accent: #66b6c1; --accent-fg: #0c1416; --accent-soft: #1e383d;
+    --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11181b; --surface: #192327; --fg: #e5eef0; --muted: #93a6ac; --line: #2b3a40;
+  --accent: #66b6c1; --accent-fg: #0c1416; --accent-soft: #1e383d;
+  --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-ui);
+  font-size: 1.0625rem; line-height: 1.5;
+  padding-block: 20px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 46rem; margin: 0 auto; }
+.stack { display: flex; flex-direction: column; gap: 26px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: 2.4rem; }
+h2 { font-size: 1.3rem; }
+p { margin: 0; }
+code { font-size: 0.92em; background: var(--accent-soft); padding: 0 4px; border-radius: 4px; }
+.eyebrow { font-size: 0.8rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.intro { display: flex; flex-direction: column; gap: 6px; }
+.lede { color: var(--muted); max-width: 40rem; }
+.note { color: var(--muted); font-size: 0.92rem; }
+.err { color: var(--bad) !important; }
+.ok { color: var(--good); }
+.block { display: flex; flex-direction: column; gap: 12px; padding-top: 20px; border-top: 1px solid var(--line); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 24px 36px; }
+.col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+button, input, textarea { font: inherit; color: inherit; }
+button {
+  min-height: 44px; padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--line);
+  background: var(--surface); cursor: pointer; font-weight: 500; -webkit-tap-highlight-color: transparent;
+}
+button:hover:not(:disabled) { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 700; }
+button.link {
+  border: 0; background: none; padding: 4px 0; min-height: 0; color: var(--accent);
+  text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; text-align: left;
+}
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.drop {
+  position: relative; display: flex; flex-direction: column; gap: 2px; align-items: flex-start;
+  padding: 16px 18px; border: 2px dashed var(--line); border-radius: 10px; cursor: pointer; background: var(--surface);
+}
+.drop.over, .drop:hover { border-color: var(--accent); }
+.drop:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop strong { font-family: var(--font-display); font-size: 1.15rem; }
+.row { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; }
+
+.pair { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.lab { width: 3rem; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; }
+.field { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 0.95rem; }
+input[type="number"] {
+  width: 4.4rem; min-height: 44px; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--line);
+  background: var(--surface); color: var(--fg); font-size: 1rem; font-variant-numeric: tabular-nums;
+}
+input[type="number"]:disabled { opacity: 0.5; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 40px; cursor: pointer; font-weight: 500; }
+.check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
+.indent { padding-left: 30px; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 10px 36px; }
+.opt { min-width: 0; }
+.tip { padding: 12px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--fg); }
+
+/* slide switch: knob left = whole range, knob right = each verse */
+.switchrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sw-word { border: 0; background: none; padding: 6px 4px; min-height: 40px; font-weight: 400; }
+.sw-word.chosen { color: var(--accent); font-weight: 700; }
+.switch { position: relative; width: 54px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 15px; background: var(--accent); flex: none; }
+.switch .knob { position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--knob); transition: transform 0.15s ease; }
+.switch[aria-checked="true"] .knob { transform: translateX(24px); }
+.switch:disabled { background: var(--line); opacity: 1; }
+.timefields { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.startrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.startrow .primary { min-width: 9rem; }
+
+/* run screen */
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  padding-block: 10px 12px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px;
+}
+.bar-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 14px; }
+#rangeLabel { font-family: var(--font-display); font-size: 1.1rem; min-width: 0; }
+.bar-right { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+.clock { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clock.low, .clock.up { color: var(--bad); }
+.clock.frozen { color: var(--muted); }
+.menu-btn { border: 2px solid var(--bad); color: var(--bad); font-weight: 700; padding: 6px 12px; min-height: 40px; }
+.menu-btn:hover:not(:disabled) { border-color: var(--bad); background: var(--bad-soft); }
+.prog-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; font-size: 0.92rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.track { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.fill { height: 100%; width: 0; background: var(--accent); transition: width 0.25s ease; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+.ref { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.hintline { font-family: var(--font-display); font-style: italic; font-size: 1.15rem; color: var(--muted); }
+.hintline:empty { display: none; }
+textarea#answer {
+  width: 100%; min-height: 8.5rem; resize: vertical; padding: 12px 14px; border-radius: 8px;
+  border: 1.5px solid var(--line); background: var(--bg); font-family: var(--font-display); font-size: 1.25rem; line-height: 1.5;
+}
+textarea#answer:focus-visible { border-color: var(--accent); outline-offset: 0; }
+textarea#answer[readonly] { opacity: 0.8; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btns .pause { margin-left: auto; }
+#msg { font-weight: 700; }
+#msg:empty { display: none; }
+#msg.good { color: var(--good); }
+#msg.bad { color: var(--bad); }
+.diff { font-family: var(--font-display); font-size: 1.2rem; line-height: 1.7; padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); overflow-wrap: anywhere; }
+.diff .miss { background: var(--mark); border-radius: 3px; padding: 0 3px; }
+.diff .extra { color: var(--bad); text-decoration: line-through; background: var(--bad-soft); border-radius: 3px; padding: 0 3px; }
+#diffWrap { display: flex; flex-direction: column; gap: 6px; }
+
+.tally { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: 10px; }
+.tally > div { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--bg); display: flex; flex-direction: column; }
+.tally b { font-family: var(--font-display); font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.tally span { font-size: 0.88rem; color: var(--muted); }
+.tally .g b { color: var(--good); }
+.tally .b b { color: var(--bad); }
+.list { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+@media (max-width: 480px) {
+  h1 { font-size: 2rem; }
+  .card { padding: 16px; }
+  .ref { font-size: 1.7rem; }
+  .btns > button:not(.pause) { flex: 1 1 auto; }
+}
+@media (prefers-reduced-motion: reduce) { .fill, .switch .knob { transition: none; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <!-- ======================= SETUP SCREEN ======================= -->
+  <section id="setup" class="stack">
+    <header class="intro">
+      <p class="eyebrow">ESV &middot; Romans</p>
+      <h1>Scripture Memory</h1>
+      <p class="lede">Pick any stretch of the passage, then type or speak each verse from memory. Every verse is tested once, and mistakes are collected for the end.</p>
+    </header>
+
+    <section class="block">
+      <h2>Your text</h2>
+      <p class="note">Load your <code>romans.txt</code> (lines like <code>C1V1 - ...</code>). It stays on this device and is never uploaded.</p>
+      <label class="drop" id="drop" for="file">
+        <strong>Choose text file</strong>
+        <span class="note">or drop it here</span>
+        <input type="file" id="file" accept=".txt,text/plain">
+      </label>
+      <div class="row">
+        <p id="fileStatus" role="status">No text loaded yet.</p>
+        <button type="button" class="link" id="forget" hidden>Forget saved text</button>
+      </div>
+    </section>
+
+    <section class="block cols">
+      <div class="col">
+        <h2>Range</h2>
+        <div class="pair">
+          <span class="lab">From</span>
+          <label class="field">Chapter <input id="c1" type="number" inputmode="numeric" min="1" max="16" value="1"></label>
+          <label class="field">Verse <input id="v1" type="number" inputmode="numeric" min="1" value="1"></label>
+        </div>
+        <div class="pair">
+          <span class="lab">To</span>
+          <label class="field">Chapter <input id="c2" type="number" inputmode="numeric" min="1" max="16" value="1"></label>
+          <label class="field">Verse <input id="v2" type="number" inputmode="numeric" min="1" value="7"></label>
+        </div>
+        <button type="button" class="link" id="whole">Use the whole of the From chapter</button>
+        <p id="rangeMsg" role="status"></p>
+      </div>
+      <!-- Timer: off by default; the slide switch picks whole range or each verse -->
+      <div class="col" id="mainTimerHost"></div>
+    </section>
+
+    <section class="block">
+      <h2>Options</h2>
+      <div class="opts">
+        <div class="opt">
+          <label class="check"><input type="checkbox" id="optShuffle" checked><span>Random order</span></label>
+          <p class="note indent">Verses come up shuffled. Untick to go through them in Bible order.</p>
+        </div>
+        <div class="opt">
+          <label class="check"><input type="checkbox" id="optCase"><span>Ignore capital letters</span></label>
+          <p class="note indent">&ldquo;Grace&rdquo; and &ldquo;grace&rdquo; count as the same word.</p>
+        </div>
+        <div class="opt">
+          <label class="check"><input type="checkbox" id="optPunct"><span>Ignore punctuation</span></label>
+          <p class="note indent">Commas, full stops, quote marks and dashes are not marked.</p>
+        </div>
+        <div class="opt">
+          <label class="check"><input type="checkbox" id="optRetry"><span>Let me retry after a mistake</span></label>
+          <p class="note indent">Stay on a verse until you get it right. Untick and the run moves on, saving the verse for practice.</p>
+        </div>
+      </div>
+      <p class="note tip"><strong>Speaking your answers:</strong> on iPhone, tap the microphone on the keyboard. On Windows press Win&nbsp;+&nbsp;H; on a Mac use Dictation (press Fn twice). When speaking, tick Ignore punctuation and Ignore capital letters.</p>
+    </section>
+
+    <div class="startrow">
+      <button class="primary" id="start" type="button" disabled>Start</button>
+      <span class="note" id="startNote">Load your text to begin.</span>
+    </div>
+  </section>
+
+  <!-- ======================= RUN SCREEN ======================= -->
+  <section id="session" class="stack" hidden>
+    <div class="bar">
+      <div class="bar-top">
+        <strong id="rangeLabel"></strong>
+        <div class="bar-right">
+          <span id="clock" class="clock"></span>
+          <!-- back to the setup screen (abandons the current run) -->
+          <button type="button" class="menu-btn" id="menu">&larr; Main menu</button>
+        </div>
+      </div>
+      <div class="prog-top"><span id="progText"></span><span id="tallyText"></span></div>
+      <div class="track"><div class="fill" id="fill"></div></div>
+    </div>
+
+    <div class="card" id="card">
+      <div id="ref" class="ref"></div>
+      <div id="hintLine" class="hintline" aria-live="polite"></div>
+      <textarea id="answer" rows="5" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+        aria-label="Type the verse from memory" placeholder="Type or speak the verse. Return checks it."></textarea>
+      <div class="btns">
+        <button class="primary" id="check" type="button">Check</button>
+        <button id="hint" type="button">Hint</button>
+        <button id="show" type="button">Show verse</button>
+        <button class="primary" id="next" type="button" hidden>Next verse</button>
+        <!-- Pause hides the verse, clears your typing and reshuffles what's left (Esc also pauses) -->
+        <button id="pause" type="button" class="pause">Pause</button>
+      </div>
+      <p id="msg" role="status"></p>
+      <div id="diffWrap" hidden>
+        <div id="diff" class="diff"></div>
+        <p class="note" id="legend"></p>
+      </div>
+    </div>
+
+    <div class="card" id="paused" hidden>
+      <h2 class="ref">Paused</h2>
+      <p class="note" id="pausedInfo"></p>
+      <div><button class="primary" id="resume" type="button">Resume</button></div>
+    </div>
+
+    <div class="card" id="done" hidden>
+      <div>
+        <h2>Run finished</h2>
+        <p class="note" id="doneSub"></p>
+      </div>
+      <div class="tally">
+        <div class="g"><b id="tClean">0</b><span>right first try, no hints</span></div>
+        <div><b id="tAssist">0</b><span>right with retries or hints</span></div>
+        <div class="b"><b id="tWrong">0</b><span>wrong or shown</span></div>
+        <div class="b" id="tLateBox" hidden><b id="tLate">0</b><span>not reached (time ran out)</span></div>
+      </div>
+      <div class="list" id="missList"></div>
+      <div class="cols">
+        <div class="col">
+          <h2>Retry</h2>
+          <p class="note">Mistakes, shown verses and verses not reached are always retried.</p>
+          <label class="check"><input type="checkbox" id="incHelped"><span>Also retry verses I got right with help</span></label>
+          <p class="note indent" id="incHelpedMsg"></p>
+        </div>
+        <!-- the retry timer is set separately from the main timer -->
+        <div class="col" id="retryTimerHost"></div>
+      </div>
+      <div class="btns">
+        <button class="primary" id="retry" type="button">Retry</button>
+        <button id="again" type="button">Same range, new order</button>
+        <button id="newRange" type="button">Choose another range</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+// <pure>
+const BOOK = "Romans";
+const COUNTS = [0, 32, 29, 31, 25, 21, 23, 25, 39, 33, 21, 36, 21, 14, 23, 33, 27];
+const TOTAL_VERSES = 432; // 433 minus 16:24, which the ESV omits
+
+function isValid(c, v) {
+  return Number.isInteger(c) && Number.isInteger(v) && c >= 1 && c <= 16 &&
+    v >= 1 && v <= COUNTS[c] && !(c === 16 && v === 24);
+}
+
+function refProblem(c, v, which) {
+  if (!Number.isInteger(c) || c < 1 || c > 16) return which + ": chapter must be a number from 1 to 16.";
+  if (!Number.isInteger(v) || v < 1) return which + ": enter a verse number.";
+  if (c === 16 && v === 24) return which + ": the ESV leaves out Romans 16:24. Use 16:23 or 16:25.";
+  if (v > COUNTS[c]) return which + ": Romans " + c + " has " + (c === 16 ? "27 verse numbers (24 is omitted)" : COUNTS[c] + " verses") + ".";
+  return "";
+}
+
+// "C1V1 - text" lines -> Map("1:1" -> text)
+function parseText(text) {
+  const m = new Map();
+  text.replace(/^﻿/, "").split(/\r?\n/).forEach(function (line) {
+    const r = /^C(\d+)V(\d+)\s*-\s*(.+)$/.exec(line.trim());
+    if (r) m.set(Number(r[1]) + ":" + Number(r[2]), r[3].trim());
+  });
+  return m;
+}
+
+function buildRange(c1, v1, c2, v2) {
+  const out = [];
+  for (let c = c1; c <= c2; c++) {
+    for (let v = 1; v <= COUNTS[c]; v++) {
+      if (!isValid(c, v)) continue;
+      if (c === c1 && v < v1) continue;
+      if (c === c2 && v > v2) continue;
+      out.push(c + ":" + v);
+    }
+  }
+  return out;
+}
+
+function refParts(r) { const p = r.split(":"); return [Number(p[0]), Number(p[1])]; }
+function sortRefs(list) {
+  return Array.from(new Set(list)).sort(function (a, b) {
+    const x = refParts(a), y = refParts(b);
+    return x[0] - y[0] || x[1] - y[1];
+  });
+}
+
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  return a;
+}
+
+function normalize(s) {
+  return s.replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+    .replace(/\s*[—–]\s*/g, " — ").replace(/\s+/g, " ").trim();
+}
+
+function makeKey(ignoreCase, ignorePunct) {
+  return function (w) {
+    let k = w;
+    if (ignoreCase) k = k.toLowerCase();
+    if (ignorePunct) k = k.replace(/[^\p{L}\p{N}]/gu, "");
+    return k;
+  };
+}
+
+function tokens(s, key) {
+  return normalize(s).split(" ").filter(function (w) { return w && key(w) !== ""; });
+}
+
+// word diff: [{t: "eq" | "miss" | "extra", w}]
+function diffOps(exp, got, key) {
+  const a = exp.map(key), b = got.map(key), n = a.length, m = b.length;
+  const dp = [];
+  for (let i = 0; i <= n; i++) dp.push(new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--)
+    dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+  const ops = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { ops.push({ t: "eq", w: exp[i] }); i++; j++; }
+    else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ t: "miss", w: exp[i] }); i++; }
+    else { ops.push({ t: "extra", w: got[j] }); j++; }
+  }
+  while (i < n) ops.push({ t: "miss", w: exp[i++] });
+  while (j < m) ops.push({ t: "extra", w: got[j++] });
+  return ops;
+}
+
+// seconds -> "m:ss", rounding up so 0:00 only shows when time is really out
+function fmtTime(seconds) {
+  const s = Math.max(0, Math.ceil(seconds - 1e-9));
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+// </pure>
+
+// Explanations under the timer controls; the text follows the switch position.
+const TIMER_HELP = {
+  off: "Tick to race the clock. The switch chooses whether the time covers the whole range or each verse.",
+  range: "Whole range: one clock for the entire run. It stops while you read each result and carries on when the next verse appears. When it reaches zero the run ends. The verse on screen is marked as it stands, and verses not reached are saved for practice.",
+  verse: "Each verse: the clock restarts for every verse and pauses while you read the correction. When it reaches zero, what you typed is marked, and the verse counts as wrong unless it is already right."
+};
+const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
+  off: "Tick to time your retries. This is separate from the main timer, so you can give yourself more or less time."
+});
+
+(function () {
+  const $ = function (id) { return document.getElementById(id); };
+  // Browser storage keeps your text and settings on this device only. It can be unavailable
+  // (private browsing), so every access is wrapped and the app still works without it.
+  const store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* not saved */ } },
+    del: function (k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } }
+  };
+  const TEXT_KEY = "scripture-memory-text-v1";
+  const OLD_TEXT_KEY = "romans-recall-text-v1";   // text saved by the earlier version still loads
+  const SET_KEY = "scripture-memory-settings-v1";
+
+  let verses = new Map();
+  let S = null;            // state of the current run
+  let tickId = null;       // pending clock update
+  let mainTimer = null, retryTimer = null, restoring = false;
+
+  // ---------- one set of timer controls (used for the main timer and the retry timer)
+  function makeTimer(host, prefix, title, help, onChange) {
+    host.innerHTML =
+      '<h2>' + title + '</h2>' +
+      '<label class="check"><input type="checkbox" id="' + prefix + 'On"><span>Use a countdown timer</span></label>' +
+      '<div class="switchrow">' +
+        '<button type="button" class="sw-word" id="' + prefix + 'WRange">Whole range</button>' +
+        '<button type="button" class="switch" role="switch" id="' + prefix + 'Switch" aria-label="Timer covers each verse"><span class="knob"></span></button>' +
+        '<button type="button" class="sw-word" id="' + prefix + 'WVerse">Each verse</button>' +
+      '</div>' +
+      '<div class="timefields">' +
+        '<label for="' + prefix + 'Min">Time</label>' +
+        '<input id="' + prefix + 'Min" type="number" inputmode="numeric" min="0" max="180" value="1">' +
+        '<span>min</span>' +
+        '<input id="' + prefix + 'Sec" type="number" inputmode="numeric" min="0" max="59" step="5" value="0" aria-label="Seconds">' +
+        '<span>sec</span>' +
+      '</div>' +
+      '<p class="note" id="' + prefix + 'Msg"></p>';
+    const on = $(prefix + "On"), sw = $(prefix + "Switch"), wr = $(prefix + "WRange"), wv = $(prefix + "WVerse");
+    const mn = $(prefix + "Min"), sc = $(prefix + "Sec"), msg = $(prefix + "Msg");
+    const t = { mode: "verse", msg: msg };
+
+    // [mode, seconds, error]; mode is null when this timer is off
+    t.setting = function () {
+      if (!on.checked) return [null, 0, ""];
+      const ms = mn.value.trim(), ss = sc.value.trim();
+      const m = ms === "" ? 0 : Number(ms), s = ss === "" ? 0 : Number(ss);
+      if (!Number.isInteger(m) || !Number.isInteger(s) || m < 0 || s < 0 || s > 59)
+        return [null, 0, "Time must be whole minutes and seconds (seconds 0 to 59)."];
+      const total = m * 60 + s;
+      if (total <= 0) return [null, 0, "Set a time above zero, or untick the timer."];
+      return [t.mode, total, ""];
+    };
+    t.setMode = function (m) { if (on.checked) { t.mode = m; t.update(); } };
+    // grey out when off, highlight the chosen side, show the matching explanation or an error
+    t.update = function () {
+      const enabled = on.checked;
+      [sw, wr, wv, mn, sc].forEach(function (el) { el.disabled = !enabled; });
+      sw.setAttribute("aria-checked", t.mode === "verse" ? "true" : "false");
+      wr.classList.toggle("chosen", enabled && t.mode === "range");
+      wv.classList.toggle("chosen", enabled && t.mode === "verse");
+      if (!enabled) { msg.textContent = help.off; msg.className = "note"; }
+      else {
+        const err = t.setting()[2];
+        msg.textContent = err || help[t.mode];
+        msg.className = err ? "note err" : "note";
+      }
+      if (onChange) onChange();
+    };
+    t.get = function () { return { on: on.checked, mode: t.mode, min: mn.value, sec: sc.value }; };
+    t.set = function (o) {
+      if (!o) return;
+      on.checked = !!o.on;
+      t.mode = o.mode === "range" ? "range" : "verse";
+      if (o.min != null) mn.value = o.min;
+      if (o.sec != null) sc.value = o.sec;
+      t.update();
+    };
+    on.addEventListener("change", t.update);
+    sw.addEventListener("click", function () { t.setMode(t.mode === "verse" ? "range" : "verse"); });
+    sw.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") { t.setMode("range"); e.preventDefault(); }
+      if (e.key === "ArrowRight") { t.setMode("verse"); e.preventDefault(); }
+    });
+    wr.addEventListener("click", function () { t.setMode("range"); });
+    wv.addEventListener("click", function () { t.setMode("verse"); });
+    mn.addEventListener("input", t.update);
+    sc.addEventListener("input", t.update);
+    t.update();
+    return t;
+  }
+
+  // ---------- loading your text file
+  function setStatus(msg, cls) { const el = $("fileStatus"); el.textContent = msg; el.className = cls || ""; }
+
+  function applyText(text, saved) {
+    const m = parseText(text);
+    if (m.size === 0) { setStatus("No lines in the form C1V1 - text were found in that file.", "err"); return false; }
+    verses = m;
+    const missing = [];
+    for (let c = 1; c <= 16; c++) for (let v = 1; v <= COUNTS[c]; v++)
+      if (isValid(c, v) && !m.has(c + ":" + v)) missing.push(c + ":" + v);
+    let msg = m.size + " verses loaded" + (saved ? " (saved on this device)." : ".");
+    if (missing.length) msg += " Missing " + missing.length + ": " + missing.slice(0, 6).join(", ") + (missing.length > 6 ? ", ..." : "") + ".";
+    setStatus(msg, missing.length ? "err" : "ok");
+    $("start").disabled = false;
+    $("startNote").textContent = "";
+    $("forget").hidden = false;
+    return true;
+  }
+
+  async function handleFile(file) {
+    if (!file) return;
+    let text;
+    try { text = await file.text(); } catch (e) { setStatus("Couldn't read that file. Try choosing it again.", "err"); return; }
+    if (applyText(text, false)) store.set(TEXT_KEY, text);
+  }
+
+  $("file").addEventListener("change", function (e) { handleFile(e.target.files[0]); });
+  const drop = $("drop");
+  ["dragenter", "dragover"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add("over"); }); });
+  ["dragleave", "drop"].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove("over"); }); });
+  drop.addEventListener("drop", function (e) { handleFile(e.dataTransfer.files[0]); });
+
+  $("forget").addEventListener("click", function () {
+    store.del(TEXT_KEY); store.del(OLD_TEXT_KEY);
+    verses = new Map();
+    $("start").disabled = true;
+    $("startNote").textContent = "Load your text to begin.";
+    $("forget").hidden = true;
+    $("file").value = "";
+    setStatus("Saved text removed. Nothing loaded.", "");
+  });
+
+  // ---------- range
+  function num(id) { const s = $(id).value.trim(); return s === "" ? NaN : Number(s); }
+  function readRange() {
+    const c1 = num("c1"), v1 = num("v1"), c2 = num("c2"), v2 = num("v2");
+    const p = refProblem(c1, v1, "From") || refProblem(c2, v2, "To");
+    if (p) return { error: p };
+    if (c1 * 1000 + v1 > c2 * 1000 + v2) return { error: "The end comes before the start. Swap them or change the To verse." };
+    return { c1: c1, v1: v1, c2: c2, v2: v2 };
+  }
+  function timerSetting() { return mainTimer ? mainTimer.setting() : [null, 0, ""]; }
+  function updateRangeMsg() {
+    const r = readRange(), el = $("rangeMsg");
+    if (r.error) { el.textContent = r.error; el.className = "err"; return; }
+    const n = buildRange(r.c1, r.v1, r.c2, r.v2).length;
+    let text = n + (n === 1 ? " verse" : " verses") + " in this range.";
+    const ts = timerSetting();
+    if (ts[0] === "range" && !ts[2]) text += " Your timer allows about " + fmtTime(ts[1] / n) + " per verse.";
+    el.textContent = text;
+    el.className = "";
+  }
+  $("whole").addEventListener("click", function () {
+    const c = num("c1");
+    if (Number.isInteger(c) && c >= 1 && c <= 16) { $("v1").value = 1; $("c2").value = c; $("v2").value = COUNTS[c]; }
+    updateRangeMsg(); saveSettings();
+  });
+
+  // ---------- remembered settings (this device only)
+  const OPT_IDS = ["optShuffle", "optCase", "optPunct", "optRetry", "incHelped"];
+  const RANGE_IDS = ["c1", "v1", "c2", "v2"];
+  function saveSettings() {
+    if (restoring || !mainTimer || !retryTimer) return;
+    const o = { main: mainTimer.get(), retry: retryTimer.get() };
+    OPT_IDS.forEach(function (id) { o[id] = $(id).checked; });
+    RANGE_IDS.forEach(function (id) { o[id] = $(id).value; });
+    store.set(SET_KEY, JSON.stringify(o));
+  }
+  function loadSettings() {
+    let o = null;
+    try { o = JSON.parse(store.get(SET_KEY) || "null"); } catch (e) { o = null; }
+    if (!o) return;
+    restoring = true;
+    OPT_IDS.forEach(function (id) { if (typeof o[id] === "boolean") $(id).checked = o[id]; });
+    RANGE_IDS.forEach(function (id) { if (o[id] != null && o[id] !== "") $(id).value = o[id]; });
+    mainTimer.set(o.main);
+    retryTimer.set(o.retry);
+    restoring = false;
+  }
+  RANGE_IDS.forEach(function (id) { $(id).addEventListener("input", function () { updateRangeMsg(); saveSettings(); }); });
+  OPT_IDS.forEach(function (id) { $(id).addEventListener("change", saveSettings); });
+
+  // ---------- running a test
+  function keyFn() { return makeKey($("optCase").checked, $("optPunct").checked); }
+  function cur() { return S.queue[S.i]; }
+  function verseText() { return verses.get(cur()); }
+  function showOnly(id) { ["card", "paused", "done"].forEach(function (x) { $(x).hidden = x !== id; }); }
+
+  $("start").addEventListener("click", function () {
+    const r = readRange();
+    if (r.error) { updateRangeMsg(); return; }
+    const list = buildRange(r.c1, r.v1, r.c2, r.v2);
+    const have = list.filter(function (x) { return verses.has(x); });
+    if (!have.length) { $("rangeMsg").textContent = "None of these verses are in the loaded file."; $("rangeMsg").className = "err"; return; }
+    const err = timerSetting()[2];
+    if (err) { mainTimer.msg.textContent = err; mainTimer.msg.className = "note err"; return; }
+    const skipped = list.length - have.length;
+    const label = BOOK + " " + r.c1 + ":" + r.v1 + "–" + r.c2 + ":" + r.v2 + " · " + have.length + " verses" +
+      (skipped ? " (" + skipped + " missing from file)" : "");
+    begin(have, label, mainTimer);
+  });
+
+  // Start a run over list. timer = whose settings apply (main for a new range, retry for retries).
+  function begin(list, label, timer) {
+    stopTick();
+    const ts = timer.setting();
+    const mode = ts[2] ? null : ts[0];
+    S = {
+      queue: $("optShuffle").checked ? shuffle(list) : list.slice(), i: 0, label: label, all: list.slice(),
+      clean: 0, assist: 0, wrong: [], helped: [], notReached: [],
+      attempts: 0, hints: 0, hadMistake: false, phase: "ask", retry: $("optRetry").checked,
+      flagged: new Set(),        // paused on after a hint or mistake: can't come back as "clean"
+      mode: mode,                // null, "range" or "verse"
+      secs: ts[1],               // the time you set, in seconds
+      deadline: null,            // when the running clock hits zero (performance.now() ms)
+      rangeLeft: mode === "range" ? ts[1] : null,   // whole-range time left while stopped
+      timeUp: false, timeouts: 0, timeLeftAtEnd: null,
+      timer: timer, paused: false
+    };
+    $("setup").hidden = true;
+    $("session").hidden = false;
+    showOnly("card");
+    $("pause").hidden = false;
+    $("rangeLabel").textContent = label;
+    setClock("", "");
+    window.scrollTo(0, 0);
+    showQuestion();
+  }
+
+  function updateProgress() {
+    const n = S.queue.length;
+    $("progText").textContent = "Verse " + Math.min(S.i + 1, n) + " of " + n;
+    let t = S.clean + " clean · " + S.assist + " with help · " + S.wrong.length + " wrong";
+    if (S.notReached.length) t += " · " + S.notReached.length + " not reached";
+    $("tallyText").textContent = t;
+    $("fill").style.width = (100 * Math.min(S.i, n) / n) + "%";
+  }
+
+  function setPhase(p) {
+    S.phase = p;
+    const fin = p === "next";
+    if (fin && S.deadline !== null) {
+      // Once a verse is marked the clock stops while you read the result. Each-verse mode
+      // gets a fresh clock next verse; whole-range mode carries on from this time.
+      const left = Math.max(0, (S.deadline - performance.now()) / 1000);
+      stopTick();
+      S.deadline = null;
+      if (S.mode === "range") S.rangeLeft = left;
+      showTime(left, true);
+    }
+    $("check").hidden = fin; $("hint").hidden = fin; $("show").hidden = fin;
+    $("next").hidden = !fin;
+    $("answer").readOnly = fin;
+    if (fin) {
+      $("next").textContent = (S.timeUp && S.mode === "range") ? "See results"
+        : (S.i === S.queue.length - 1 ? "Finish" : "Next verse");
+      $("answer").blur();                       // closes the phone keyboard so the result is visible
+      $("next").focus({ preventScroll: true });
+    }
+  }
+
+  function showQuestion() {
+    S.attempts = 0; S.hints = 0;
+    S.hadMistake = S.flagged.has(cur());
+    const p = refParts(cur());
+    $("ref").textContent = BOOK + " " + p[0] + ":" + p[1];
+    $("hintLine").textContent = "";
+    $("answer").value = "";
+    $("msg").textContent = ""; $("msg").className = "";
+    $("diffWrap").hidden = true;
+    setPhase("ask");
+    if (S.mode === "verse") startTimer(S.secs);                       // fresh clock for every verse
+    else if (S.mode === "range" && !S.timeUp) startTimer(S.rangeLeft); // whole-range clock carries on
+    updateProgress();
+    $("answer").focus({ preventScroll: true });
+  }
+
+  function renderOps(ops) {
+    const box = $("diff");
+    box.textContent = "";
+    ops.forEach(function (o, idx) {
+      const s = document.createElement("span");
+      if (o.t !== "eq") s.className = o.t;
+      s.textContent = o.w;
+      box.appendChild(s);
+      if (idx < ops.length - 1) box.appendChild(document.createTextNode(" "));
+    });
+  }
+  const DIFF_LEGEND = "Highlighted words are what the verse has at that point. Struck-through words are in your answer but do not belong there.";
+  function showDiff(legend) { $("legend").textContent = legend; $("diffWrap").hidden = false; }
+  function setMsg(text, cls) { $("msg").textContent = text; $("msg").className = cls || ""; }
+
+  function check() {
+    const typed = $("answer").value;
+    if (!typed.trim()) { setMsg("Type the verse first.", "bad"); $("answer").focus(); return; }
+    S.attempts++;
+    const key = keyFn();
+    const ops = diffOps(tokens(verseText(), key), tokens(typed, key), key);
+    const wrong = ops.filter(function (o) { return o.t !== "eq"; });
+    if (!wrong.length) {
+      const clean = S.attempts === 1 && S.hints === 0 && !S.hadMistake;
+      if (clean) S.clean++; else { S.assist++; S.helped.push(cur()); }
+      setMsg(clean ? "Word perfect." : (S.attempts > 1 ? "Correct after " + S.attempts + " tries." : "Correct (hints used)."), "good");
+      $("diffWrap").hidden = true;
+      setPhase("next");
+    } else {
+      const miss = wrong.filter(function (o) { return o.t === "miss"; }).length;
+      const extra = wrong.length - miss;
+      const text = "Not quite: " + miss + " word" + (miss === 1 ? "" : "s") + " missing or wrong" + (extra ? ", " + extra + " extra." : ".");
+      renderOps(ops);
+      showDiff(DIFF_LEGEND);
+      if (S.retry) {
+        S.hadMistake = true;
+        setMsg(text, "bad");
+        $("answer").focus();
+      } else {
+        S.wrong.push(cur());
+        setMsg(text + " Moving on; this verse is saved for practice.", "bad");
+        setPhase("next");
+      }
+    }
+    updateProgress();
+  }
+
+  function showVerse() {
+    S.wrong.push(cur());
+    $("diff").textContent = verseText();
+    showDiff("This verse is saved for practice at the end.");
+    setMsg("Here is the verse.", "");
+    setPhase("next");
+    updateProgress();
+  }
+
+  function hint() {
+    S.hints++;
+    const words = normalize(verseText()).split(" ");
+    const n = Math.min(S.hints, words.length);
+    $("hintLine").textContent = words.slice(0, n).join(" ") + (n < words.length ? " …" : "");
+    $("answer").focus({ preventScroll: true });
+  }
+
+  function next() {
+    if (S.timeUp && S.mode === "range") return finish();   // whole-range clock ran out
+    S.i++;
+    if (S.i >= S.queue.length) return finish();
+    showQuestion();
+  }
+
+  // ---------- countdown clock
+  function setClock(text, cls) { const el = $("clock"); el.textContent = text; el.className = "clock" + (cls ? " " + cls : ""); }
+  function startTimer(seconds) { stopTick(); S.deadline = performance.now() + seconds * 1000; tick(); }
+  function stopTick() { if (tickId !== null) { clearTimeout(tickId); tickId = null; } }
+  function tick() {
+    tickId = null;
+    if (!S || S.deadline === null) return;
+    const left = (S.deadline - performance.now()) / 1000;
+    showTime(left, false);
+    if (left <= 0) timeUp();
+    else tickId = setTimeout(tick, 200);
+  }
+  function showTime(left, frozen) {
+    const prefix = S.mode === "range" ? "Time left " : "This verse ";
+    const low = left <= Math.min(10, Math.max(3, S.secs * 0.25));   // last stretch shows in red
+    setClock(prefix + fmtTime(left), frozen ? "frozen" : (low ? "low" : ""));
+  }
+
+  // The clock reached zero: mark what's typed, then (whole range) end the run.
+  function timeUp() {
+    stopTick();
+    S.deadline = null;
+    setClock("Time's up", "up");
+    if (S.mode === "range") {
+      S.timeUp = true;
+      S.notReached = S.queue.slice(S.i + 1);
+      $("pause").hidden = true;            // nothing left to pause
+    }
+    if (S.phase === "ask") {
+      const typed = $("answer").value;
+      const key = keyFn();
+      const ops = typed.trim() ? diffOps(tokens(verseText(), key), tokens(typed, key), key) : null;
+      if (ops && ops.every(function (o) { return o.t === "eq"; })) {
+        // what you typed is already right, so it still counts
+        const clean = S.attempts === 0 && S.hints === 0 && !S.hadMistake;
+        if (clean) S.clean++; else { S.assist++; S.helped.push(cur()); }
+        setMsg("Time's up, but what you typed is right.", "good");
+        $("diffWrap").hidden = true;
+      } else {
+        S.timeouts++;
+        S.wrong.push(cur());
+        if (ops) {
+          renderOps(ops);
+          setMsg("Time's up. Here is how your answer compares.", "bad");
+          showDiff(DIFF_LEGEND);
+        } else {
+          $("diff").textContent = verseText();
+          setMsg("Time's up. Here is the verse.", "bad");
+          showDiff("This verse is saved for practice at the end.");
+        }
+      }
+      setPhase("next");
+    } else if (S.mode === "range") {
+      $("next").textContent = "See results";
+    }
+    updateProgress();
+  }
+
+  // ---------- pause / resume
+  // Pausing hides the verse, clears your typing, stops the clock and reshuffles every
+  // verse not yet done, so a pause can't be used to look ahead.
+  function pause() {
+    if (!S || S.paused || S.timeUp || $("card").hidden) return;
+    if (S.deadline !== null) {
+      const left = Math.max(0, (S.deadline - performance.now()) / 1000);
+      stopTick();
+      S.deadline = null;
+      if (S.mode === "range") S.rangeLeft = left;
+    }
+    let start;
+    if (S.phase === "ask") {
+      if (S.hints || S.hadMistake) S.flagged.add(cur());   // this verse goes back in the pile, marked
+      start = S.i;
+    } else {
+      start = S.i + 1;                                      // this verse is already marked
+    }
+    const rest = shuffle(S.queue.slice(start));             // reshuffled even in Bible-order mode
+    S.queue = S.queue.slice(0, start).concat(rest);
+    S.i = start;
+    S.paused = true;
+    $("answer").value = ""; $("answer").blur();
+    $("ref").textContent = ""; $("hintLine").textContent = "";
+    setMsg("", ""); $("diffWrap").hidden = true;
+    showOnly("paused");
+    const n = rest.length;
+    let info = "The verse has been hidden and what you typed was cleared. The " + n + " verse" + (n === 1 ? "" : "s") +
+      " still to do " + (n === 1 ? "has" : "have") + " been shuffled again.";
+    if (S.mode === "range") {
+      info += " The clock is stopped with " + fmtTime(S.rangeLeft) + " left.";
+      setClock("Paused · " + fmtTime(S.rangeLeft), "frozen");
+    } else if (S.mode === "verse") {
+      info += " The next verse gets a fresh clock.";
+      setClock("Paused", "frozen");
+    }
+    $("pausedInfo").textContent = info;
+    updateProgress();
+  }
+
+  function resume() {
+    if (!S || !S.paused) return;
+    S.paused = false;
+    showOnly("card");
+    if (S.i >= S.queue.length) return finish();   // paused after the last verse was marked
+    showQuestion();                               // whole-range clock restarts from rangeLeft
+  }
+
+  // ---------- results
+  function finish() {
+    if (S.mode === "range")
+      S.timeLeftAtEnd = S.deadline !== null ? (S.deadline - performance.now()) / 1000 : S.rangeLeft;
+    stopTick();
+    S.deadline = null;
+    updateProgress();
+    $("fill").style.width = "100%";
+    $("progText").textContent = S.timeUp ? "Time's up" : "Finished";
+    showOnly("done");
+    $("pause").hidden = true;
+    $("tClean").textContent = S.clean;
+    $("tAssist").textContent = S.assist;
+    $("tWrong").textContent = S.wrong.length;
+    $("tLate").textContent = S.notReached.length;
+    $("tLateBox").hidden = S.notReached.length === 0;   // only when the whole-range clock ran out
+    const where = S.label.split(" · ")[0];
+    const tested = S.queue.length - S.notReached.length;
+    let summary = tested + " verses tested in " + where + ".";
+    if (S.mode === "range") {
+      if (S.timeUp) { const k = S.notReached.length; summary += " Time ran out with " + k + " verse" + (k === 1 ? "" : "s") + " not reached."; }
+      else summary += " Finished with " + fmtTime(S.timeLeftAtEnd || 0) + " to spare.";
+    } else if (S.mode === "verse") {
+      const k = S.timeouts;
+      summary += " Timer: " + fmtTime(S.secs) + " per verse; time ran out on " + k + " verse" + (k === 1 ? "" : "s") + ".";
+    }
+    $("doneSub").textContent = summary;
+    setClock("", "");
+    // every verse worth another go, grouped by why
+    const list = $("missList");
+    list.textContent = "";
+    [["Wrong or shown", S.wrong], ["Not reached", S.notReached], ["Right with help", S.helped]].forEach(function (g) {
+      if (!g[1].length) return;
+      const p = document.createElement("p");
+      const b = document.createElement("strong");
+      b.textContent = g[0] + ": ";
+      p.appendChild(b);
+      p.appendChild(document.createTextNode(sortRefs(g[1]).join("  ·  ")));
+      list.appendChild(p);
+    });
+    if (!list.childNodes.length) list.textContent = "No mistakes and no help needed. Well done.";
+    refreshRetry();
+    window.scrollTo(0, 0);
+  }
+
+  // Verses the Retry button tests: mistakes, shown and unreached verses,
+  // plus (if ticked) verses you got right only with hints or retries.
+  function retryList() {
+    let refs = S.wrong.concat(S.notReached);
+    if ($("incHelped").checked) refs = refs.concat(S.helped);
+    return sortRefs(refs);
+  }
+  function refreshRetry() {
+    const k = new Set(S.helped).size;
+    $("incHelped").disabled = k === 0;
+    $("incHelpedMsg").textContent = k
+      ? "Adds the " + k + " verse" + (k === 1 ? "" : "s") + " you got right only after hints or retries."
+      : "No verses needed help this run.";
+    const n = retryList().length;
+    $("retry").hidden = n === 0;
+    $("retry").textContent = "Retry " + n + " verse" + (n === 1 ? "" : "s");
+  }
+  $("incHelped").addEventListener("change", function () { if (S && !$("done").hidden) refreshRetry(); });
+
+  $("retry").addEventListener("click", function () {
+    const err = retryTimer.setting()[2];
+    if (err) { retryTimer.msg.textContent = err; retryTimer.msg.className = "note err"; return; }
+    const lst = retryList();
+    if (lst.length) begin(lst, "Retry · " + lst.length + " verses", retryTimer);
+  });
+  // same verses, new order, same timer settings as the run just finished
+  $("again").addEventListener("click", function () { begin(S.all, S.label, S.timer); });
+
+  function showSetup() {
+    stopTick();
+    if (S) S.deadline = null;
+    $("session").hidden = true;
+    $("setup").hidden = false;
+    updateRangeMsg();
+    window.scrollTo(0, 0);
+  }
+  $("menu").addEventListener("click", showSetup);
+  $("newRange").addEventListener("click", showSetup);
+
+  $("check").addEventListener("click", check);
+  $("hint").addEventListener("click", hint);
+  $("show").addEventListener("click", showVerse);
+  $("next").addEventListener("click", next);
+  $("pause").addEventListener("click", pause);
+  $("resume").addEventListener("click", resume);
+
+  // Return checks the verse (Shift+Return adds a line break); Return again goes on.
+  $("answer").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      if (S && S.phase === "ask") check();
+      else if (S && S.phase === "next") next();
+    }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (!S || $("session").hidden) return;
+    if (e.key === "Escape") { pause(); return; }
+    if (e.key === "Enter" && S.phase === "next" && !$("card").hidden) {
+      const tag = e.target && e.target.tagName;
+      if (tag === "BUTTON" || tag === "TEXTAREA" || tag === "INPUT") return;
+      e.preventDefault();
+      next();
+    }
+  });
+  // Leaving the app mid-run (switching apps, locking the phone) pauses it, so the clock is fair.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden && S && !$("session").hidden && !$("card").hidden) pause();
+  });
+
+  // ---------- start up
+  mainTimer = makeTimer($("mainTimerHost"), "mt", "Timer", TIMER_HELP, function () { updateRangeMsg(); saveSettings(); });
+  retryTimer = makeTimer($("retryTimerHost"), "rt", "Retry timer", RETRY_TIMER_HELP, saveSettings);
+  loadSettings();
+  const saved = store.get(TEXT_KEY) || store.get(OLD_TEXT_KEY);
+  if (saved) applyText(saved, true);
+  updateRangeMsg();
+
+  // test hook (harmless): lets an automated check read the current verse reference
+  window.__sm = { state: function () { return S; } };
+})();
+</script>
+<script>
+// Offline support: after the first visit the app opens without internet.
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+</script>
+</body>
+</html>
