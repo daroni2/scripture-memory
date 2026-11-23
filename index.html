@@ -256,6 +256,7 @@ textarea#answer[readonly] { opacity: 0.8; }
         </div>
       </div>
       <p class="note tip"><strong>Speaking your answers:</strong> on iPhone, tap the microphone on the keyboard. On Windows press Win&nbsp;+&nbsp;H; on a Mac use Dictation (press Fn twice). When speaking, tick Ignore punctuation and Ignore capital letters.</p>
+      <p class="note">Keyboard suggestions and autocorrect are on in the answer box. Glance over your answer before checking, in case autocorrect has swapped a word.</p>
     </section>
 
     <div class="startrow">
@@ -282,7 +283,8 @@ textarea#answer[readonly] { opacity: 0.8; }
     <div class="card" id="card">
       <div id="ref" class="ref"></div>
       <div id="hintLine" class="hintline" aria-live="polite"></div>
-      <textarea id="answer" rows="5" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"
+      <!-- keyboard suggestions, autocorrect and spellcheck are on, so the iPhone shows its suggestion bar -->
+      <textarea id="answer" rows="5" spellcheck="true" autocorrect="on" autocapitalize="sentences"
         aria-label="Type the verse from memory" placeholder="Type or speak the verse. Return checks it."></textarea>
       <div class="btns">
         <button class="primary" id="check" type="button">Check</button>
