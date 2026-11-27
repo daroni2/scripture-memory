@@ -40,6 +40,7 @@ img { max-width: 100%; }
   --bad-soft: #f7e0dc;
   --mark: #f3dc8f;
   --knob: #ffffff;
+  --on-mark: #ffffff;   /* text on the green/red tester buttons */
   --font-display: "Alegreya", Georgia, "Times New Roman", serif;
   --font-ui: "Alegreya Sans", -apple-system, system-ui, "Segoe UI", sans-serif;
 }
@@ -47,14 +48,14 @@ img { max-width: 100%; }
   :root:not([data-theme="light"]) {
     --bg: #11181b; --surface: #192327; --fg: #e5eef0; --muted: #93a6ac; --line: #2b3a40;
     --accent: #66b6c1; --accent-fg: #0c1416; --accent-soft: #1e383d;
-    --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416;
+    --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416; --on-mark: #0c1416;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #11181b; --surface: #192327; --fg: #e5eef0; --muted: #93a6ac; --line: #2b3a40;
   --accent: #66b6c1; --accent-fg: #0c1416; --accent-soft: #1e383d;
-  --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416;
+  --good: #66c48d; --bad: #f0907f; --bad-soft: #3b201b; --mark: #5a4a14; --knob: #0c1416; --on-mark: #0c1416;
   color-scheme: dark;
 }
 
@@ -92,6 +93,11 @@ button {
 }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 700; }
+/* tester mode: big green Correct and red Incorrect */
+button.good, button.bad { color: var(--on-mark); font-weight: 700; min-height: 52px; padding: 10px 22px; font-size: 1.1rem; }
+button.good { background: var(--good); border-color: var(--good); }
+button.bad { background: var(--bad); border-color: var(--bad); }
+.testerbox { display: flex; flex-direction: column; gap: 6px; }
 button.link {
   border: 0; background: none; padding: 4px 0; min-height: 0; color: var(--accent);
   text-decoration: underline; text-underline-offset: 3px; align-self: flex-start; text-align: left;
@@ -261,8 +267,11 @@ textarea#answer[readonly] { opacity: 0.8; }
 
     <div class="startrow">
       <button class="primary" id="start" type="button" disabled>Start</button>
+      <!-- second way to run the same range: another person marks each verse -->
+      <button id="startTester" type="button" disabled>Start with a tester</button>
       <span class="note" id="startNote">Load your text to begin.</span>
     </div>
+    <p class="note">Start with a tester: the verse is shown on screen for someone to follow while you say it aloud. They press Correct or Incorrect, and incorrect verses go on the retry list. Random order, timers and Pause still apply; the marking options don't.</p>
   </section>
 
   <!-- ======================= RUN SCREEN ======================= -->
@@ -283,6 +292,11 @@ textarea#answer[readonly] { opacity: 0.8; }
     <div class="card" id="card">
       <div id="ref" class="ref"></div>
       <div id="hintLine" class="hintline" aria-live="polite"></div>
+      <!-- tester mode shows the verse itself in place of the answer box -->
+      <div id="testerBox" class="testerbox" hidden>
+        <p class="note">The verse, for the tester to follow:</p>
+        <div id="testerText" class="diff"></div>
+      </div>
       <!-- keyboard suggestions, autocorrect and spellcheck are on, so the iPhone shows its suggestion bar -->
       <textarea id="answer" rows="5" spellcheck="true" autocorrect="on" autocapitalize="sentences"
         aria-label="Type the verse from memory" placeholder="Type or speak the verse. Return checks it."></textarea>
@@ -291,6 +305,9 @@ textarea#answer[readonly] { opacity: 0.8; }
         <button id="hint" type="button">Hint</button>
         <button id="show" type="button">Show verse</button>
         <button class="primary" id="next" type="button" hidden>Next verse</button>
+        <button class="good" id="correct" type="button" hidden>Correct</button>
+        <button class="bad" id="incorrect" type="button" hidden>Incorrect</button>
+        <button id="undo" type="button" hidden>Undo last</button>
         <!-- Pause hides the verse, clears your typing and reshuffles what's left (Esc also pauses) -->
         <button id="pause" type="button" class="pause">Pause</button>
       </div>
@@ -313,9 +330,9 @@ textarea#answer[readonly] { opacity: 0.8; }
         <p class="note" id="doneSub"></p>
       </div>
       <div class="tally">
-        <div class="g"><b id="tClean">0</b><span>right first try, no hints</span></div>
-        <div><b id="tAssist">0</b><span>right with retries or hints</span></div>
-        <div class="b"><b id="tWrong">0</b><span>wrong or shown</span></div>
+        <div class="g"><b id="tClean">0</b><span id="tCleanLab">right first try, no hints</span></div>
+        <div id="tAssistBox"><b id="tAssist">0</b><span>right with retries or hints</span></div>
+        <div class="b"><b id="tWrong">0</b><span id="tWrongLab">wrong or shown</span></div>
         <div class="b" id="tLateBox" hidden><b id="tLate">0</b><span>not reached (time ran out)</span></div>
       </div>
       <div class="list" id="missList"></div>
@@ -555,6 +572,7 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     if (missing.length) msg += " Missing " + missing.length + ": " + missing.slice(0, 6).join(", ") + (missing.length > 6 ? ", ..." : "") + ".";
     setStatus(msg, missing.length ? "err" : "ok");
     $("start").disabled = false;
+    $("startTester").disabled = false;
     $("startNote").textContent = "";
     $("forget").hidden = false;
     return true;
@@ -577,6 +595,7 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     store.del(TEXT_KEY); store.del(OLD_TEXT_KEY);
     verses = new Map();
     $("start").disabled = true;
+    $("startTester").disabled = true;
     $("startNote").textContent = "Load your text to begin.";
     $("forget").hidden = true;
     $("file").value = "";
@@ -639,7 +658,8 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
   function verseText() { return verses.get(cur()); }
   function showOnly(id) { ["card", "paused", "done"].forEach(function (x) { $(x).hidden = x !== id; }); }
 
-  $("start").addEventListener("click", function () {
+  // tester = true: the verse is shown and another person marks it Correct or Incorrect
+  function startRun(tester) {
     const r = readRange();
     if (r.error) { updateRangeMsg(); return; }
     const list = buildRange(r.c1, r.v1, r.c2, r.v2);
@@ -649,12 +669,14 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     if (err) { mainTimer.msg.textContent = err; mainTimer.msg.className = "note err"; return; }
     const skipped = list.length - have.length;
     const label = BOOK + " " + r.c1 + ":" + r.v1 + "–" + r.c2 + ":" + r.v2 + " · " + have.length + " verses" +
-      (skipped ? " (" + skipped + " missing from file)" : "");
-    begin(have, label, mainTimer);
-  });
+      (skipped ? " (" + skipped + " missing from file)" : "") + (tester ? " \u00b7 tester" : "");
+    begin(have, label, mainTimer, tester);
+  }
+  $("start").addEventListener("click", function () { startRun(false); });
+  $("startTester").addEventListener("click", function () { startRun(true); });
 
   // Start a run over list. timer = whose settings apply (main for a new range, retry for retries).
-  function begin(list, label, timer) {
+  function begin(list, label, timer, tester) {
     stopTick();
     const ts = timer.setting();
     const mode = ts[2] ? null : ts[0];
@@ -668,7 +690,10 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
       deadline: null,            // when the running clock hits zero (performance.now() ms)
       rangeLeft: mode === "range" ? ts[1] : null,   // whole-range time left while stopped
       timeUp: false, timeouts: 0, timeLeftAtEnd: null,
-      timer: timer, paused: false
+      timer: timer, paused: false,
+      tester: !!tester,          // a person marks each verse Correct / Incorrect
+      history: [],               // [index, verse, correct, timedOut] for Undo
+      note: ""                   // message to show with the next verse
     };
     $("setup").hidden = true;
     $("session").hidden = false;
@@ -683,7 +708,8 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
   function updateProgress() {
     const n = S.queue.length;
     $("progText").textContent = "Verse " + Math.min(S.i + 1, n) + " of " + n;
-    let t = S.clean + " clean · " + S.assist + " with help · " + S.wrong.length + " wrong";
+    let t = S.tester ? S.clean + " correct \u00b7 " + S.wrong.length + " incorrect"
+      : S.clean + " clean \u00b7 " + S.assist + " with help \u00b7 " + S.wrong.length + " wrong";
     if (S.notReached.length) t += " · " + S.notReached.length + " not reached";
     $("tallyText").textContent = t;
     $("fill").style.width = (100 * Math.min(S.i, n) / n) + "%";
@@ -692,6 +718,14 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
   function setPhase(p) {
     S.phase = p;
     const fin = p === "next";
+    const tb = S.tester;
+    $("correct").hidden = !tb; $("incorrect").hidden = !tb; $("undo").hidden = !tb;
+    if (tb) {
+      // tester mode: no answer box and no review step; marking moves straight on
+      ["check", "hint", "show", "next"].forEach(function (id) { $(id).hidden = true; });
+      $("undo").disabled = !S.history.length || S.timeUp;
+      return;
+    }
     if (fin && S.deadline !== null) {
       // Once a verse is marked the clock stops while you read the result. Each-verse mode
       // gets a fresh clock next verse; whole-range mode carries on from this time.
@@ -721,11 +755,56 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     $("answer").value = "";
     $("msg").textContent = ""; $("msg").className = "";
     $("diffWrap").hidden = true;
+    $("answer").hidden = S.tester;
+    $("testerBox").hidden = !S.tester;
+    if (S.tester) {
+      $("testerText").textContent = verseText();
+      if (S.note) { setMsg(S.note, "bad"); S.note = ""; }
+    }
     setPhase("ask");
     if (S.mode === "verse") startTimer(S.secs);                       // fresh clock for every verse
     else if (S.mode === "range" && !S.timeUp) startTimer(S.rangeLeft); // whole-range clock carries on
     updateProgress();
-    $("answer").focus({ preventScroll: true });
+    if (!S.tester) $("answer").focus({ preventScroll: true });
+  }
+
+  // ---------- tester mode
+  // stop the clock; for the whole-range timer, remember how much time is left
+  function stopClockKeepTime() {
+    if (S.deadline !== null) {
+      const left = Math.max(0, (S.deadline - performance.now()) / 1000);
+      stopTick();
+      S.deadline = null;
+      if (S.mode === "range") S.rangeLeft = left;
+    }
+  }
+  // the tester's verdict on the verse on screen; moves straight to the next verse
+  function mark(correct) {
+    if (!S || !S.tester || S.paused || $("card").hidden) return;
+    stopClockKeepTime();
+    const ref = cur();
+    S.history.push([S.i, ref, correct, false]);
+    if (correct) S.clean++; else S.wrong.push(ref);   // incorrect goes on the retry list
+    advance();
+  }
+  function advance() {
+    if (S.timeUp && S.mode === "range") return finish();   // last verse marked after time ran out
+    S.i++;
+    if (S.i >= S.queue.length) return finish();
+    showQuestion();
+  }
+  // take back the last Correct / Incorrect (for a mis-tap) and show that verse again
+  function undo() {
+    if (!S || !S.tester || !S.history.length || S.paused || S.timeUp) return;
+    stopClockKeepTime();
+    const h = S.history.pop();
+    if (h[2]) S.clean--;
+    else S.wrong.splice(S.wrong.lastIndexOf(h[1]), 1);
+    if (h[3]) S.timeouts--;
+    S.i = h[0];
+    showQuestion();
+    const p = refParts(h[1]);
+    setMsg("Undone: " + BOOK + " " + p[0] + ":" + p[1] + " is back. Mark it again.", "");
   }
 
   function renderOps(ops) {
@@ -827,6 +906,23 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
       S.notReached = S.queue.slice(S.i + 1);
       $("pause").hidden = true;            // nothing left to pause
     }
+    if (S.tester) {
+      if (S.mode === "range") {
+        // the tester still marks the verse that was being said, then the results show
+        $("undo").disabled = true;
+        setMsg("Time's up. Mark this last verse to see the results.", "bad");
+      } else {
+        // each-verse clock ran out: counts as incorrect, on to the next verse
+        const ref = cur(), p = refParts(ref);
+        S.timeouts++;
+        S.wrong.push(ref);
+        S.history.push([S.i, ref, false, true]);
+        S.note = "Time ran out on " + BOOK + " " + p[0] + ":" + p[1] + ", so it was marked incorrect.";
+        advance();
+      }
+      updateProgress();
+      return;
+    }
     if (S.phase === "ask") {
       const typed = $("answer").value;
       const key = keyFn();
@@ -884,7 +980,7 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     setMsg("", ""); $("diffWrap").hidden = true;
     showOnly("paused");
     const n = rest.length;
-    let info = "The verse has been hidden and what you typed was cleared. The " + n + " verse" + (n === 1 ? "" : "s") +
+    let info = (S.tester ? "The verse has been hidden. " : "The verse has been hidden and what you typed was cleared. ") + "The " + n + " verse" + (n === 1 ? "" : "s") +
       " still to do " + (n === 1 ? "has" : "have") + " been shuffled again.";
     if (S.mode === "range") {
       info += " The clock is stopped with " + fmtTime(S.rangeLeft) + " left.";
@@ -921,9 +1017,13 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     $("tWrong").textContent = S.wrong.length;
     $("tLate").textContent = S.notReached.length;
     $("tLateBox").hidden = S.notReached.length === 0;   // only when the whole-range clock ran out
+    // tester mode: just Correct and Incorrect (no hints or retries to count)
+    $("tAssistBox").hidden = S.tester;
+    $("tCleanLab").textContent = S.tester ? "correct" : "right first try, no hints";
+    $("tWrongLab").textContent = S.tester ? "incorrect" : "wrong or shown";
     const where = S.label.split(" · ")[0];
     const tested = S.queue.length - S.notReached.length;
-    let summary = tested + " verses tested in " + where + ".";
+    let summary = tested + (tested === 1 ? " verse" : " verses") + " tested in " + where + "." + (S.tester ? " Marked by a tester." : "");
     if (S.mode === "range") {
       if (S.timeUp) { const k = S.notReached.length; summary += " Time ran out with " + k + " verse" + (k === 1 ? "" : "s") + " not reached."; }
       else summary += " Finished with " + fmtTime(S.timeLeftAtEnd || 0) + " to spare.";
@@ -936,7 +1036,7 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     // every verse worth another go, grouped by why
     const list = $("missList");
     list.textContent = "";
-    [["Wrong or shown", S.wrong], ["Not reached", S.notReached], ["Right with help", S.helped]].forEach(function (g) {
+    [[S.tester ? "Incorrect" : "Wrong or shown", S.wrong], ["Not reached", S.notReached], ["Right with help", S.helped]].forEach(function (g) {
       if (!g[1].length) return;
       const p = document.createElement("p");
       const b = document.createElement("strong");
@@ -962,7 +1062,7 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     $("incHelped").disabled = k === 0;
     $("incHelpedMsg").textContent = k
       ? "Adds the " + k + " verse" + (k === 1 ? "" : "s") + " you got right only after hints or retries."
-      : "No verses needed help this run.";
+      : (S.tester ? "Doesn't apply when a tester marks the verses." : "No verses needed help this run.");
     const n = retryList().length;
     $("retry").hidden = n === 0;
     $("retry").textContent = "Retry " + n + " verse" + (n === 1 ? "" : "s");
@@ -973,10 +1073,10 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
     const err = retryTimer.setting()[2];
     if (err) { retryTimer.msg.textContent = err; retryTimer.msg.className = "note err"; return; }
     const lst = retryList();
-    if (lst.length) begin(lst, "Retry · " + lst.length + " verses", retryTimer);
+    if (lst.length) begin(lst, "Retry \u00b7 " + lst.length + " verses" + (S.tester ? " \u00b7 tester" : ""), retryTimer, S.tester);
   });
   // same verses, new order, same timer settings as the run just finished
-  $("again").addEventListener("click", function () { begin(S.all, S.label, S.timer); });
+  $("again").addEventListener("click", function () { begin(S.all, S.label, S.timer, S.tester); });
 
   function showSetup() {
     stopTick();
@@ -994,6 +1094,9 @@ const RETRY_TIMER_HELP = Object.assign({}, TIMER_HELP, {
   $("show").addEventListener("click", showVerse);
   $("next").addEventListener("click", next);
   $("pause").addEventListener("click", pause);
+  $("correct").addEventListener("click", function () { mark(true); });
+  $("incorrect").addEventListener("click", function () { mark(false); });
+  $("undo").addEventListener("click", undo);
   $("resume").addEventListener("click", resume);
 
   // Return checks the verse (Shift+Return adds a line break); Return again goes on.
